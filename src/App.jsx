@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { remixContent } from './services/api'
+import { tweetsFromPost } from './services/api'
 
 function App() {
   const [inputText, setInputText] = useState('')
   const [outputText, setOutputText] = useState('')
+  const [tweets, setTweets] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [remixType, setRemixType] = useState('general')
   const [copySuccess, setCopySuccess] = useState(false)
@@ -17,11 +18,13 @@ function App() {
     setIsLoading(true)
     
     try {
-      const remixed = await remixContent(inputText, remixType)
-      setOutputText(remixed)
+      const result = await tweetsFromPost(inputText, remixType)
+      setOutputText(result.rawText)
+      setTweets(result.tweets)
     } catch (error) {
       console.error('Error remixing content:', error)
       setOutputText(`Error: ${error.message}`)
+      setTweets([])
     } finally {
       setIsLoading(false)
     }
@@ -29,11 +32,22 @@ function App() {
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(outputText)
+      const allTweets = tweets.join('\n\n')
+      await navigator.clipboard.writeText(allTweets)
       setCopySuccess(true)
       setTimeout(() => setCopySuccess(false), 2000)
     } catch (err) {
       alert('Failed to copy to clipboard')
+    }
+  }
+
+  const handleCopyTweet = async (tweet, index) => {
+    try {
+      await navigator.clipboard.writeText(tweet)
+      setCopySuccess(index)
+      setTimeout(() => setCopySuccess(false), 2000)
+    } catch (err) {
+      alert('Failed to copy tweet to clipboard')
     }
   }
 
@@ -45,77 +59,29 @@ function App() {
   ]
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 50%, #f0fdfa 100%)',
-      padding: '2rem'
-    }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 p-8">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <header style={{ textAlign: 'center', marginBottom: '3rem', paddingTop: '2rem' }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '80px',
-            height: '80px',
-            background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-            borderRadius: '20px',
-            marginBottom: '1.5rem',
-            boxShadow: '0 10px 25px rgba(59, 130, 246, 0.3)'
-          }}>
-            <span style={{ fontSize: '2rem' }}>🎭</span>
+        <header className="text-center mb-12 pt-8">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl mb-6 shadow-lg shadow-blue-500/30">
+            <span className="text-3xl">🎭</span>
           </div>
-          <h1 style={{
-            fontSize: '3.5rem',
-            fontWeight: '900',
-            background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            marginBottom: '1rem',
-            letterSpacing: '-0.02em'
-          }}>
+          <h1 className="text-6xl font-black bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4 tracking-tight">
             Content Remixer
           </h1>
-          <p style={{
-            fontSize: '1.2rem',
-            color: '#64748b',
-            maxWidth: '600px',
-            margin: '0 auto',
-            lineHeight: '1.6'
-          }}>
+          <p className="text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
             Transform your content with AI-powered remixing. Give your text a fresh new perspective in seconds.
           </p>
         </header>
 
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', 
-          gap: '2rem',
-          marginBottom: '3rem'
-        }}>
+        <div className="grid lg:grid-cols-2 gap-8 mb-12 lg:items-stretch">
           {/* Input Section */}
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.9)',
-            borderRadius: '24px',
-            padding: '2rem',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.5)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                background: '#dbeafe',
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginRight: '1rem'
-              }}>
-                <span style={{ color: '#3b82f6' }}>✏️</span>
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/50 p-8 hover:shadow-3xl transition-all duration-300">
+            <div className="flex items-center mb-6">
+              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center mr-4">
+                <span className="text-blue-600">✏️</span>
               </div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+              <h2 className="text-2xl font-bold text-slate-800">
                 Input Text
               </h2>
             </div>
@@ -124,80 +90,42 @@ function App() {
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               placeholder="✨ Paste your text here to remix it into something amazing..."
-              style={{
-                width: '100%',
-                height: '200px',
-                padding: '1.5rem',
-                border: '2px solid #e2e8f0',
-                borderRadius: '16px',
-                resize: 'none',
-                fontSize: '1rem',
-                lineHeight: '1.5',
-                fontFamily: 'inherit',
-                backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                transition: 'all 0.2s ease'
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = '#3b82f6'
-                e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)'
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = '#e2e8f0'
-                e.target.style.boxShadow = 'none'
-              }}
+              className="w-full h-52 p-6 border-2 border-slate-200 rounded-2xl resize-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 text-slate-700 placeholder-slate-400 bg-white/80 backdrop-blur-sm font-medium outline-none"
             />
             
             {/* Remix Type Selection */}
-            <div style={{ marginTop: '1.5rem' }}>
-              <label style={{ 
-                display: 'block', 
-                fontSize: '0.9rem', 
-                fontWeight: '600', 
-                color: '#374151', 
-                marginBottom: '1rem' 
-              }}>
+            <div className="mt-6">
+              <label className="block text-sm font-semibold text-slate-700 mb-4">
                 Choose your remix style
               </label>
-              <div style={{ display: 'grid', gap: '0.75rem' }}>
+              <div className="grid gap-3">
                 {remixTypes.map(type => (
-                  <label key={type.value} style={{ cursor: 'pointer' }}>
+                  <label key={type.value} className="cursor-pointer group">
                     <input
                       type="radio"
                       name="remixType"
                       value={type.value}
                       checked={remixType === type.value}
                       onChange={(e) => setRemixType(e.target.value)}
-                      style={{ display: 'none' }}
+                      className="sr-only"
                     />
-                    <div style={{
-                      padding: '1rem',
-                      borderRadius: '12px',
-                      border: `2px solid ${remixType === type.value ? '#3b82f6' : '#e2e8f0'}`,
-                      backgroundColor: remixType === type.value ? '#f0f9ff' : 'rgba(255, 255, 255, 0.5)',
-                      transition: 'all 0.2s ease'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div>
-                          <div style={{ fontWeight: '600', color: '#1e293b' }}>{type.label}</div>
-                          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{type.description}</div>
+                    <div className={`p-4 rounded-xl border-2 transition-all duration-200 group-hover:border-slate-300 group-hover:bg-white/70 ${
+                      remixType === type.value 
+                        ? 'border-blue-500 bg-blue-50 shadow-md' 
+                        : 'border-slate-200 bg-white/50'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="font-semibold text-slate-800">{type.label}</div>
+                          <div className="text-sm text-slate-600">{type.description}</div>
                         </div>
-                        <div style={{
-                          width: '20px',
-                          height: '20px',
-                          borderRadius: '50%',
-                          border: `2px solid ${remixType === type.value ? '#3b82f6' : '#d1d5db'}`,
-                          backgroundColor: remixType === type.value ? '#3b82f6' : 'transparent',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                          remixType === type.value 
+                            ? 'border-blue-500 bg-blue-500' 
+                            : 'border-slate-300'
+                        }`}>
                           {remixType === type.value && (
-                            <div style={{
-                              width: '8px',
-                              height: '8px',
-                              backgroundColor: 'white',
-                              borderRadius: '50%'
-                            }}></div>
+                            <div className="w-2 h-2 bg-white rounded-full"></div>
                           )}
                         </div>
                       </div>
@@ -210,105 +138,81 @@ function App() {
             <button
               onClick={handleRemix}
               disabled={isLoading || !inputText.trim()}
-              style={{
-                marginTop: '2rem',
-                width: '100%',
-                background: isLoading || !inputText.trim() 
-                  ? '#9ca3af' 
-                  : 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-                color: 'white',
-                padding: '1rem 2rem',
-                borderRadius: '16px',
-                border: 'none',
-                fontSize: '1.1rem',
-                fontWeight: '700',
-                cursor: isLoading || !inputText.trim() ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)'
-              }}
+              className={`mt-8 w-full py-4 px-8 rounded-2xl font-bold text-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 ${
+                isLoading || !inputText.trim()
+                  ? 'bg-slate-400 cursor-not-allowed text-white'
+                  : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-blue-500/30'
+              }`}
             >
               {isLoading ? '🔄 Remixing your content...' : '🎭 Remix Content'}
             </button>
           </div>
 
           {/* Output Section */}
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.9)',
-            borderRadius: '24px',
-            padding: '2rem',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.5)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <div style={{
-                  width: '40px',
-                  height: '40px',
-                  background: '#dcfce7',
-                  borderRadius: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: '1rem'
-                }}>
-                  <span style={{ color: '#16a34a' }}>✨</span>
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/50 p-8 hover:shadow-3xl transition-all duration-300 flex flex-col">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center mr-4">
+                  <span className="text-green-600">✨</span>
                 </div>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+                <h2 className="text-2xl font-bold text-slate-800">
                   Remixed Output
                 </h2>
               </div>
-              {outputText && !outputText.startsWith('Error:') && (
+              {tweets.length > 0 && (
                 <button
                   onClick={handleCopy}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    borderRadius: '10px',
-                    border: `2px solid ${copySuccess ? '#16a34a' : '#3b82f6'}`,
-                    backgroundColor: copySuccess ? '#dcfce7' : '#f0f9ff',
-                    color: copySuccess ? '#16a34a' : '#3b82f6',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 border-2 ${
+                    copySuccess === true
+                      ? 'bg-green-100 text-green-700 border-green-200' 
+                      : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 hover:border-blue-300'
+                  }`}
                 >
-                  {copySuccess ? '✅ Copied!' : '📋 Copy'}
+                  {copySuccess === true ? '✅ Copied!' : '📋 Copy All'}
                 </button>
               )}
             </div>
             
-            <div style={{
-              width: '100%',
-              height: '200px',
-              padding: '1.5rem',
-              border: '2px solid #e2e8f0',
-              borderRadius: '16px',
-              backgroundColor: 'rgba(255, 255, 255, 0.8)',
-              overflowY: 'auto',
-              fontSize: '1rem',
-              lineHeight: '1.6'
-            }}>
-              {outputText ? (
-                <div style={{
-                  whiteSpace: 'pre-wrap',
-                  color: outputText.startsWith('Error:') ? '#dc2626' : '#1e293b'
-                }}>
+            <div className="w-full flex-1 overflow-y-auto">
+              {tweets.length > 0 ? (
+                <div className="space-y-4">
+                  {tweets.map((tweet, index) => (
+                    <div key={index} className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200">
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                          Tweet {index + 1}
+                        </span>
+                        <button
+                          onClick={() => handleCopyTweet(tweet, index)}
+                          className={`text-xs px-3 py-1 rounded-lg font-medium transition-all duration-200 ${
+                            copySuccess === index
+                              ? 'bg-green-100 text-green-700 border border-green-200' 
+                              : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-200'
+                          }`}
+                        >
+                          {copySuccess === index ? '✅ Copied!' : '📋 Copy'}
+                        </button>
+                      </div>
+                      <p className="text-slate-800 font-medium leading-relaxed">
+                        {tweet}
+                      </p>
+                      <div className="mt-2 text-xs text-slate-500">
+                        {tweet.length} characters
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : outputText && outputText.startsWith('Error:') ? (
+                <div className="p-6 text-red-600 font-medium border-2 border-red-200 rounded-2xl bg-red-50">
                   {outputText}
                 </div>
               ) : (
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  height: '100%',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.3 }}>🎭</div>
-                  <p style={{ color: '#64748b', fontSize: '1.1rem', margin: 0 }}>
-                    Your beautifully remixed content will appear here...
+                <div className="flex flex-col items-center justify-center h-full text-center p-6">
+                  <div className="text-6xl mb-4 opacity-20">🎭</div>
+                  <p className="text-slate-500 text-lg font-medium">
+                    Your beautifully remixed tweets will appear here...
                   </p>
-                  <p style={{ color: '#9ca3af', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+                  <p className="text-slate-400 text-sm mt-2">
                     Add some text and hit the remix button to get started!
                   </p>
                 </div>
@@ -319,53 +223,35 @@ function App() {
 
         {/* Setup Instructions */}
         {!import.meta.env.VITE_CLAUDE_API_KEY || import.meta.env.VITE_CLAUDE_API_KEY === 'your_claude_api_key_here' ? (
-          <div style={{
-            background: 'linear-gradient(135deg, #fef3c7, #fed7aa)',
-            border: '2px solid #f59e0b',
-            borderRadius: '20px',
-            padding: '2rem',
-            boxShadow: '0 10px 25px rgba(245, 158, 11, 0.2)',
-            marginBottom: '2rem'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-              <div style={{
-                width: '60px',
-                height: '60px',
-                background: '#fbbf24',
-                borderRadius: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginRight: '1.5rem',
-                flexShrink: 0
-              }}>
-                <span style={{ fontSize: '1.5rem' }}>⚙️</span>
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-3xl p-8 shadow-lg shadow-amber-500/20 mb-8">
+            <div className="flex items-start">
+              <div className="w-14 h-14 bg-amber-100 rounded-2xl flex items-center justify-center mr-6 flex-shrink-0">
+                <span className="text-2xl">⚙️</span>
               </div>
-              <div>
-                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#92400e', marginBottom: '1rem' }}>
+              <div className="flex-1">
+                <h3 className="text-2xl font-bold text-amber-800 mb-4">
                   Setup Required
                 </h3>
-                <p style={{ color: '#b45309', marginBottom: '1.5rem', fontSize: '1.1rem' }}>
+                <p className="text-amber-700 mb-6 text-lg">
                   To unlock the full AI remixing magic, you'll need to configure your API key:
                 </p>
-                <div style={{
-                  background: 'rgba(255, 255, 255, 0.6)',
-                  borderRadius: '16px',
-                  padding: '1.5rem',
-                  border: '1px solid #f59e0b'
-                }}>
-                  <ol style={{ color: '#b45309', margin: 0, paddingLeft: '1.5rem' }}>
-                    <li style={{ marginBottom: '0.75rem' }}>
-                      Get a Claude API key from <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" style={{ color: '#d97706', textDecoration: 'underline', fontWeight: '600' }}>Anthropic Console</a>
+                <div className="bg-white/60 rounded-2xl p-6 border border-amber-200">
+                  <ol className="text-amber-700 space-y-3">
+                    <li className="flex items-start">
+                      <span className="bg-amber-200 text-amber-800 w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-0.5 flex-shrink-0">1</span>
+                      <span>Get a Claude API key from <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" className="text-amber-600 hover:text-amber-800 underline font-semibold">Anthropic Console</a></span>
                     </li>
-                    <li style={{ marginBottom: '0.75rem' }}>
-                      Create a <code style={{ background: '#fbbf24', padding: '0.25rem 0.5rem', borderRadius: '6px', fontFamily: 'monospace' }}>.env</code> file in the project root
+                    <li className="flex items-start">
+                      <span className="bg-amber-200 text-amber-800 w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-0.5 flex-shrink-0">2</span>
+                      <span>Create a <code className="bg-amber-100 px-2 py-1 rounded font-mono text-sm">.env</code> file in the project root</span>
                     </li>
-                    <li style={{ marginBottom: '0.75rem' }}>
-                      Add your API key: <code style={{ background: '#fbbf24', padding: '0.25rem 0.5rem', borderRadius: '6px', fontFamily: 'monospace' }}>VITE_CLAUDE_API_KEY=your_actual_api_key</code>
+                    <li className="flex items-start">
+                      <span className="bg-amber-200 text-amber-800 w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-0.5 flex-shrink-0">3</span>
+                      <span>Add your API key: <code className="bg-amber-100 px-2 py-1 rounded font-mono text-sm">VITE_CLAUDE_API_KEY=your_actual_api_key</code></span>
                     </li>
-                    <li>
-                      Restart the development server and start remixing!
+                    <li className="flex items-start">
+                      <span className="bg-amber-200 text-amber-800 w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold mr-3 mt-0.5 flex-shrink-0">4</span>
+                      <span>Restart the development server and start remixing!</span>
                     </li>
                   </ol>
                 </div>
@@ -375,8 +261,8 @@ function App() {
         ) : null}
 
         {/* Footer */}
-        <footer style={{ textAlign: 'center', paddingBottom: '2rem' }}>
-          <p style={{ color: '#9ca3af', fontSize: '1rem' }}>
+        <footer className="text-center pb-8">
+          <p className="text-slate-400 text-lg">
             Made with ❤️ and AI magic
           </p>
         </footer>
