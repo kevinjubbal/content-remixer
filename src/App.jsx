@@ -7,7 +7,7 @@ function App() {
   const [tweets, setTweets] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [remixType, setRemixType] = useState('general')
-  const [copySuccess, setCopySuccess] = useState(false)
+
 
   const handleRemix = async () => {
     if (!inputText.trim()) {
@@ -30,25 +30,15 @@ function App() {
     }
   }
 
-  const handleCopy = async () => {
-    try {
-      const allTweets = tweets.join('\n\n')
-      await navigator.clipboard.writeText(allTweets)
-      setCopySuccess(true)
-      setTimeout(() => setCopySuccess(false), 2000)
-    } catch (err) {
-      alert('Failed to copy to clipboard')
-    }
+  const handleTweetAll = () => {
+    const allTweets = tweets.join('\n\n')
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(allTweets)}`
+    window.open(twitterUrl, '_blank')
   }
 
-  const handleCopyTweet = async (tweet, index) => {
-    try {
-      await navigator.clipboard.writeText(tweet)
-      setCopySuccess(index)
-      setTimeout(() => setCopySuccess(false), 2000)
-    } catch (err) {
-      alert('Failed to copy tweet to clipboard')
-    }
+  const handleTweet = (tweet) => {
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweet)}`
+    window.open(twitterUrl, '_blank')
   }
 
   const remixTypes = [
@@ -138,13 +128,32 @@ function App() {
             <button
               onClick={handleRemix}
               disabled={isLoading || !inputText.trim()}
-              className={`mt-8 w-full py-4 px-8 rounded-2xl font-bold text-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 ${
-                isLoading || !inputText.trim()
+              className={`mt-8 w-full py-4 px-8 rounded-2xl font-bold text-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 relative overflow-hidden ${
+                !inputText.trim()
                   ? 'bg-slate-400 cursor-not-allowed text-white'
+                  : isLoading
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-blue-500/30 cursor-wait'
                   : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-blue-500/30'
               }`}
             >
-              {isLoading ? '🔄 Remixing your content...' : '🎭 Remix Content'}
+              {isLoading && (
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-purple-400 to-blue-400 animate-pulse">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-[shimmer_2s_ease-in-out_infinite]"></div>
+                </div>
+              )}
+              <span className="relative z-10 flex items-center justify-center">
+                {isLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Generating tweets...
+                  </>
+                ) : (
+                  '🐦 Generate Tweets'
+                )}
+              </span>
             </button>
           </div>
 
@@ -161,14 +170,10 @@ function App() {
               </div>
               {tweets.length > 0 && (
                 <button
-                  onClick={handleCopy}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 border-2 ${
-                    copySuccess === true
-                      ? 'bg-green-100 text-green-700 border-green-200' 
-                      : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 hover:border-blue-300'
-                  }`}
+                  onClick={handleTweetAll}
+                  className="px-4 py-2 rounded-lg font-medium transition-all duration-200 border-2 bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 hover:border-blue-300"
                 >
-                  {copySuccess === true ? '✅ Copied!' : '📋 Copy All'}
+                  🐦 Tweet All
                 </button>
               )}
             </div>
@@ -183,14 +188,10 @@ function App() {
                           Tweet {index + 1}
                         </span>
                         <button
-                          onClick={() => handleCopyTweet(tweet, index)}
-                          className={`text-xs px-3 py-1 rounded-lg font-medium transition-all duration-200 ${
-                            copySuccess === index
-                              ? 'bg-green-100 text-green-700 border border-green-200' 
-                              : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-200'
-                          }`}
+                          onClick={() => handleTweet(tweet)}
+                          className="text-xs px-3 py-1 rounded-lg font-medium transition-all duration-200 bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-200"
                         >
-                          {copySuccess === index ? '✅ Copied!' : '📋 Copy'}
+                          🐦 Tweet
                         </button>
                       </div>
                       <p className="text-slate-800 font-medium leading-relaxed">

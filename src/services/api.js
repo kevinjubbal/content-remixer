@@ -147,7 +147,17 @@ const parseTweets = (text) => {
     .map(tweet => tweet.trim())
     .filter(tweet => tweet.length > 0)
     // Remove any leading numbers or bullet points that might be present
-    .map(tweet => tweet.replace(/^\d+\.\s*/, '').replace(/^[-•]\s*/, ''));
+    .map(tweet => tweet.replace(/^\d+\.\s*/, '').replace(/^[-•]\s*/, ''))
+    // Filter out any introductory text that doesn't look like a tweet
+    .filter(tweet => {
+      // Skip entries that look like introductory text
+      const lowerTweet = tweet.toLowerCase();
+      return !lowerTweet.includes('here are') && 
+             !lowerTweet.includes('creative tweets') && 
+             !lowerTweet.includes('based on') &&
+             !lowerTweet.includes('blog post') &&
+             tweet.length > 20; // Skip very short entries that are likely not tweets
+    });
   
   return tweets;
 }; 
