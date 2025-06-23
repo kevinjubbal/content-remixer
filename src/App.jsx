@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { tweetsFromPost } from './services/api'
-import { saveTweet, getSavedTweets, deleteSavedTweet, isDatabaseConfigured } from './services/database'
+import { saveTweet, getSavedTweets, deleteSavedTweet, updateSavedTweet, isDatabaseConfigured } from './services/database'
 
 function App() {
   const [inputText, setInputText] = useState('')
@@ -12,6 +12,10 @@ function App() {
   const [showSavedTweets, setShowSavedTweets] = useState(false)
   const [isSaving, setIsSaving] = useState({})
   const [isLoadingSaved, setIsLoadingSaved] = useState(false)
+  const [editingTweet, setEditingTweet] = useState(null)
+  const [editedTweetText, setEditedTweetText] = useState('')
+  const [editingSavedTweet, setEditingSavedTweet] = useState(null)
+  const [editedSavedTweetText, setEditedSavedTweetText] = useState('')
 
   // Load saved tweets on component mount
   useEffect(() => {
@@ -19,6 +23,29 @@ function App() {
       loadSavedTweets()
     }
   }, [])
+
+  // Handle ESC key to close sidebar and edit modal
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === 'Escape') {
+        if (editingTweet) {
+          handleCancelEdit()
+        } else if (editingSavedTweet) {
+          handleCancelSavedTweetEdit()
+        } else if (showSavedTweets) {
+          setShowSavedTweets(false)
+        }
+      }
+    }
+
+    if (showSavedTweets || editingTweet || editingSavedTweet) {
+      document.addEventListener('keydown', handleEscKey)
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscKey)
+    }
+  }, [showSavedTweets, editingTweet, editingSavedTweet])
 
   const loadSavedTweets = async () => {
     if (!isDatabaseConfigured()) return
@@ -32,6 +59,21 @@ function App() {
     } finally {
       setIsLoadingSaved(false)
     }
+  }
+
+  const handleEditTweet = (tweetText, index) => {
+    setEditingTweet({ text: tweetText, index, type: 'new' })
+    setEditedTweetText(tweetText)
+  }
+
+  const handleEditSavedTweet = (savedTweet) => {
+    setEditingSavedTweet(savedTweet.id)
+    setEditedSavedTweetText(savedTweet.text)
+  }
+
+  const handleCancelSavedTweetEdit = () => {
+    setEditingSavedTweet(null)
+    setEditedSavedTweetText('')
   }
 
   const handleSaveTweet = async (tweetText, index) => {
@@ -49,11 +91,37 @@ function App() {
       setTimeout(() => {
         setIsSaving(prev => ({ ...prev, [index]: false }))
       }, 2000)
+      // Close edit modal if open
+      setEditingTweet(null)
+      setEditedTweetText('')
     } catch (error) {
       console.error('Error saving tweet:', error)
       alert('Error saving tweet: ' + error.message)
       setIsSaving(prev => ({ ...prev, [index]: false }))
     }
+  }
+
+  const handleUpdateSavedTweet = async (tweetText, tweetId) => {
+    if (!isDatabaseConfigured()) {
+      alert('Database not configured. Please add your Supabase credentials.')
+      return
+    }
+
+    try {
+      await updateSavedTweet(tweetId, tweetText)
+      await loadSavedTweets() // Refresh saved tweets
+      // Close inline edit
+      setEditingSavedTweet(null)
+      setEditedSavedTweetText('')
+    } catch (error) {
+      console.error('Error updating tweet:', error)
+      alert('Error updating tweet: ' + error.message)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditingTweet(null)
+    setEditedTweetText('')
   }
 
   const handleDeleteSavedTweet = async (id) => {
@@ -115,15 +183,6 @@ function App() {
               <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl shadow-lg shadow-blue-500/30">
                 <span className="text-3xl">🎭</span>
               </div>
-              {isDatabaseConfigured() && (
-                <button
-                  onClick={() => setShowSavedTweets(!showSavedTweets)}
-                  className="px-4 py-2 bg-green-100 text-green-700 rounded-xl border-2 border-green-200 hover:bg-green-200 transition-all duration-200 font-medium flex items-center gap-2"
-                >
-                  <span>💾</span>
-                  Saved Tweets ({savedTweets.length})
-                </button>
-              )}
             </div>
             <h1 className="text-6xl font-black bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4 tracking-tight">
               Content Remixer
@@ -257,26 +316,35 @@ function App() {
                             Tweet {index + 1}
                           </span>
                           <div className="flex gap-2">
+                            <button
+                              onClick={() => handleEditTweet(tweet, index)}
+                              className="text-sm p-2 rounded-lg font-medium transition-all duration-200 bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-200"
+                              title="Edit tweet"
+                            >
+                              ✏️
+                            </button>
                             {isDatabaseConfigured() && (
                               <button
                                 onClick={() => handleSaveTweet(tweet, index)}
                                 disabled={isSaving[index]}
-                                className={`text-xs px-3 py-1 rounded-lg font-medium transition-all duration-200 border ${
+                                className={`text-sm p-2 rounded-lg font-medium transition-all duration-200 border ${
                                   isSaving[index] === 'saved'
                                     ? 'bg-green-100 text-green-700 border-green-200'
                                     : isSaving[index]
                                     ? 'bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed'
-                                    : 'bg-purple-100 text-purple-700 hover:bg-purple-200 border-purple-200'
+                                    : 'bg-orange-100 text-orange-700 hover:bg-orange-200 border-orange-200'
                                 }`}
+                                title={isSaving[index] === 'saved' ? 'Saved' : isSaving[index] ? 'Saving...' : 'Save tweet'}
                               >
-                                {isSaving[index] === 'saved' ? '✅ Saved' : isSaving[index] ? '⏳ Saving...' : '💾 Save'}
+                                {isSaving[index] === 'saved' ? '✅' : isSaving[index] ? '⏳' : '💾'}
                               </button>
                             )}
                             <button
                               onClick={() => handleTweet(tweet)}
-                              className="text-xs px-3 py-1 rounded-lg font-medium transition-all duration-200 bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-200"
+                              className="text-sm p-2 rounded-lg font-medium transition-all duration-200 bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-200"
+                              title="Tweet this"
                             >
-                              🐦 Tweet
+                              🐦
                             </button>
                           </div>
                         </div>
@@ -368,9 +436,39 @@ function App() {
         </div>
       </div>
 
+      {/* Sidebar Toggle Button */}
+      {isDatabaseConfigured() && (
+        <button
+          onClick={() => setShowSavedTweets(!showSavedTweets)}
+          className={`fixed top-8 z-40 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-l-2xl shadow-lg hover:shadow-xl transition-all duration-300 group ${
+            showSavedTweets ? 'right-[24rem]' : 'right-0'
+          }`}
+        >
+          <div className={`transition-transform duration-300 ${showSavedTweets ? 'rotate-180' : ''}`}>
+            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+          {/* Tooltip */}
+          <div className={`absolute right-full top-1/2 -translate-y-1/2 mr-3 bg-black text-white text-xs py-1 px-2 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none ${
+            showSavedTweets ? 'hidden' : ''
+          }`}>
+            Saved Tweets ({savedTweets.length})
+          </div>
+        </button>
+      )}
+
       {/* Saved Tweets Sidebar */}
       {showSavedTweets && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex justify-end">
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex justify-end"
+          onClick={(e) => {
+            // Close sidebar if clicking on backdrop (not the sidebar content)
+            if (e.target === e.currentTarget) {
+              setShowSavedTweets(false)
+            }
+          }}
+        >
           <div className="w-full max-w-md bg-white shadow-2xl overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center">
               <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
@@ -407,32 +505,165 @@ function App() {
                         <span className="text-xs font-semibold text-purple-600 bg-purple-100 px-2 py-1 rounded-full">
                           {savedTweet.remix_type}
                         </span>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleTweet(savedTweet.text)}
-                            className="text-xs px-3 py-1 rounded-lg font-medium transition-all duration-200 bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-200"
-                          >
-                            🐦 Tweet
-                          </button>
-                          <button
-                            onClick={() => handleDeleteSavedTweet(savedTweet.id)}
-                            className="text-xs px-3 py-1 rounded-lg font-medium transition-all duration-200 bg-red-100 text-red-700 hover:bg-red-200 border border-red-200"
-                          >
-                            🗑️ Delete
-                          </button>
+                        {editingSavedTweet !== savedTweet.id && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleEditSavedTweet(savedTweet)}
+                              className="text-sm p-2 rounded-lg font-medium transition-all duration-200 bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-200"
+                              title="Edit tweet"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              onClick={() => handleTweet(savedTweet.text)}
+                              className="text-sm p-2 rounded-lg font-medium transition-all duration-200 bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-200"
+                              title="Tweet this"
+                            >
+                              🐦
+                            </button>
+                            <button
+                              onClick={() => handleDeleteSavedTweet(savedTweet.id)}
+                              className="text-sm p-2 rounded-lg font-medium transition-all duration-200 bg-red-100 text-red-700 hover:bg-red-200 border border-red-200"
+                              title="Delete tweet"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {editingSavedTweet === savedTweet.id ? (
+                        <div className="space-y-3">
+                          <textarea
+                            value={editedSavedTweetText}
+                            onChange={(e) => setEditedSavedTweetText(e.target.value)}
+                            className="w-full h-20 p-3 border-2 border-blue-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-slate-700 bg-white text-sm outline-none"
+                            placeholder="Edit your tweet..."
+                            autoFocus
+                          />
+                          <div className="flex justify-between items-center">
+                            <span className={`text-xs ${editedSavedTweetText.length > 280 ? 'text-red-600' : 'text-slate-500'}`}>
+                              {editedSavedTweetText.length} / 280 characters
+                            </span>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={handleCancelSavedTweetEdit}
+                                className="text-sm p-2 rounded-lg font-medium transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200"
+                                title="Cancel editing"
+                              >
+                                ✖️
+                              </button>
+                              <button
+                                onClick={() => handleUpdateSavedTweet(editedSavedTweetText, savedTweet.id)}
+                                disabled={editedSavedTweetText.trim() === '' || editedSavedTweetText.length > 280}
+                                className={`text-sm p-2 rounded-lg font-medium transition-all duration-200 ${
+                                  editedSavedTweetText.trim() === '' || editedSavedTweetText.length > 280
+                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed border border-gray-300'
+                                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-200'
+                                }`}
+                                title="Save changes"
+                              >
+                                💾
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <p className="text-slate-800 font-medium leading-relaxed text-sm">
-                        {savedTweet.text}
-                      </p>
-                      <div className="mt-2 text-xs text-slate-500 flex justify-between">
-                        <span>{savedTweet.character_count} characters</span>
-                        <span>{new Date(savedTweet.created_at).toLocaleDateString()}</span>
-                      </div>
+                      ) : (
+                        <>
+                          <p className="text-slate-800 font-medium leading-relaxed text-sm">
+                            {savedTweet.text}
+                          </p>
+                          <div className="mt-2 text-xs text-slate-500 flex justify-between">
+                            <span>{savedTweet.character_count} characters</span>
+                            <span>{new Date(savedTweet.created_at).toLocaleDateString()}</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Tweet Modal */}
+      {editingTweet && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center rounded-t-2xl">
+              <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                <span>✏️</span>
+                Edit Tweet
+              </h2>
+              <button
+                onClick={handleCancelEdit}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Tweet Content
+                </label>
+                <textarea
+                  value={editedTweetText}
+                  onChange={(e) => setEditedTweetText(e.target.value)}
+                  className="w-full h-32 p-4 border-2 border-slate-200 rounded-xl resize-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 text-slate-700 bg-white font-medium outline-none"
+                  placeholder="Edit your tweet..."
+                />
+                <div className="mt-2 flex justify-between items-center text-sm">
+                  <span className={`${editedTweetText.length > 280 ? 'text-red-600' : 'text-slate-500'}`}>
+                    {editedTweetText.length} / 280 characters
+                  </span>
+                  {editedTweetText.length > 280 && (
+                    <span className="text-red-600 font-medium">
+                      Too long for a tweet!
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={handleCancelEdit}
+                  className="p-3 rounded-xl font-medium transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200 text-lg"
+                  title="Cancel editing"
+                >
+                  ✖️
+                </button>
+                <button
+                  onClick={() => {
+                    if (editingTweet.type === 'saved') {
+                      handleUpdateSavedTweet(editedTweetText, editingTweet.id)
+                    } else {
+                      handleSaveTweet(editedTweetText, editingTweet.index)
+                    }
+                  }}
+                  disabled={
+                    (editingTweet.type === 'new' && isSaving[editingTweet.index]) || 
+                    editedTweetText.trim() === '' || 
+                    editedTweetText.length > 280
+                  }
+                  className={`p-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl text-lg ${
+                    (editingTweet.type === 'new' && isSaving[editingTweet.index]) || 
+                    editedTweetText.trim() === '' || 
+                    editedTweetText.length > 280
+                      ? 'bg-gray-400 cursor-not-allowed text-white'
+                      : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'
+                  }`}
+                  title={
+                    (editingTweet.type === 'new' && isSaving[editingTweet.index]) ? 'Saving...' :
+                    editingTweet.type === 'saved' ? 'Update tweet' : 'Save tweet'
+                  }
+                >
+                  {(editingTweet.type === 'new' && isSaving[editingTweet.index]) ? '⏳' : '💾'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

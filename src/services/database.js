@@ -58,6 +58,31 @@ export const getSavedTweets = async () => {
   }
 }
 
+// Update a saved tweet
+export const updateSavedTweet = async (id, tweetText) => {
+  if (!supabase) {
+    throw new Error('Database not configured. Please add your Supabase credentials.')
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('saved_tweets')
+      .update({
+        text: tweetText,
+        character_count: tweetText.length,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+
+    if (error) throw error
+    return data[0]
+  } catch (error) {
+    console.error('Error updating tweet:', error)
+    throw error
+  }
+}
+
 // Delete a saved tweet
 export const deleteSavedTweet = async (id) => {
   if (!supabase) {
