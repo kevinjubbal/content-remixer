@@ -1,11 +1,19 @@
-const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
-const API_KEY = import.meta.env.VITE_CLAUDE_API_KEY;
+import Anthropic from '@anthropic-ai/sdk';
+
+// Configure the SDK to talk to our proxy server
+const anthropic = new Anthropic({
+  // This is a dummy key because the proxy will add the real one.
+  // The SDK requires a key to be present, but it won't be used.
+  apiKey: 'placeholder', 
+  
+  // This is required to run the SDK in a browser environment
+  dangerouslyAllowBrowser: true,
+
+  // Point the SDK to our proxy endpoint using a full URL
+  baseURL: `${window.location.origin}/api`,
+});
 
 export const remixContent = async (text, remixType = 'general') => {
-  if (!API_KEY || API_KEY === 'your_claude_api_key_here') {
-    throw new Error('Claude API key not configured. Please add your API key to .env file.');
-  }
-
   const prompts = {
     general: `Please remix the following text in a creative and engaging way while maintaining the core message. Make it more interesting, varied, and appealing to read:
 
@@ -27,33 +35,26 @@ ${text}`
   const prompt = prompts[remixType] || prompts.general;
 
   try {
-    const response = await fetch(CLAUDE_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-3-sonnet-20240229',
-        max_tokens: 1000,
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ]
-      })
+    const response = await anthropic.messages.create({
+      model: 'claude-3-5-sonnet-20240620',
+      max_tokens: 1000,
+      messages: [
+        {
+          role: 'user',
+          content: prompt
+        }
+      ]
     });
+    
+    return response.content[0].text;
 
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.content[0].text;
   } catch (error) {
-    console.error('API Error:', error);
-    throw new Error('Failed to remix content. Please check your API key and try again.');
+    console.error('API Error in remixContent:', error);
+    if (error instanceof Anthropic.APIError) {
+      // The SDK provides a structured error object
+      throw new Error(`API Error: ${error.status} ${error.name} - ${error.message}`);
+    }
+    // Re-throw other types of errors
+    throw error;
   }
 }; 

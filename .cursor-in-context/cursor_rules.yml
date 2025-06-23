@@ -1,0 +1,60 @@
+rules:
+  - name: No Hardcoded Secrets
+    description: Do not hardcode API keys, secrets, tokens, passwords, or credentials.
+    pattern: /(?i)(secret|token|key|password)\s*[:=]\s*["'][A-Za-z0-9\-_.]{8,}["']/
+    severity: high
+    suggestion: "Use environment variables (e.g. process.env.SECRET_KEY or os.environ['SECRET_KEY']) and load from a .env file."
+
+  - name: Use HTTPS for All External Calls
+    description: All fetch/axios/http calls should use HTTPS endpoints only.
+    pattern: /http:\/\/[^\s'"]+/
+    severity: high
+    suggestion: "Use HTTPS instead of HTTP for secure communication."
+
+  - name: Implement Try-Catch or Error Handling
+    description: All async calls or API interactions must be wrapped in error handling blocks.
+    pattern: /\b(fetch|axios|get|post|put|delete)\b(?!.*(try|catch|error))/i
+    severity: medium
+    suggestion: "Wrap all API calls in try-catch blocks or include .catch() handlers to handle errors gracefully."
+
+  - name: Input Validation Required
+    description: Validate all user inputs before processing or storage.
+    pattern: /req\.body|request\.body|input/i
+    severity: high
+    suggestion: "Use libraries like Joi, Zod, or Yup to validate input data structures explicitly."
+
+  - name: Use Environment Configuration Files
+    description: Configuration values (ports, secrets, database URLs) should be sourced from a `.env` or config file.
+    pattern: /['"](localhost|127\.0\.0\.1|admin|password)['"]/
+    severity: high
+    suggestion: "Avoid using local or insecure defaults; load from configuration or environment files."
+
+  - name: Limit API Request Rate
+    description: Enforce rate limiting on all public API endpoints to prevent abuse.
+    pattern: /\b(app\.get|app\.post|router\.get|router\.post)\b(?!.*(rateLimit|throttle))/i
+    severity: medium
+    suggestion: "Use a rate-limiting middleware like express-rate-limit, or a token bucket pattern to limit abusive requests."
+
+  - name: Use HTTPS in Server Configuration
+    description: Ensure server enforces HTTPS or redirects HTTP to HTTPS.
+    pattern: /\bhttp\.createServer\b/
+    severity: high
+    suggestion: "Use https.createServer and enforce SSL certs; use middleware to redirect all HTTP traffic to HTTPS."
+
+  - name: Sanitize Output to Prevent XSS
+    description: Escape or sanitize output to prevent cross-site scripting.
+    pattern: /\b(innerHTML|document\.write|dangerouslySetInnerHTML)\b/
+    severity: high
+    suggestion: "Use libraries like DOMPurify or escape user-generated content before rendering it."
+
+  - name: Dependency Pinning Recommended
+    description: Use pinned versions for dependencies in `package.json`, `requirements.txt`, or similar.
+    pattern: /["'][^"']+\^|~[^"']+["']/
+    severity: low
+    suggestion: "Avoid loose version ranges (e.g., ^1.2.3 or ~1.2.3). Pin exact versions to prevent unintended updates."
+
+  - name: Avoid Eval
+    description: Prevent usage of `eval()` or similar dynamic execution functions.
+    pattern: /\beval\s*\(/
+    severity: high
+    suggestion: "Avoid eval() entirely due to security concerns. Use safer alternatives or structured logic." 
